@@ -8,11 +8,14 @@ def softmax(x: mx.array, axis: int) -> mx.array:
 
 
 def linear(
-    x: mx.array,
-    w: mx.array,
-    bias: mx.array | None = None,
-) -> mx.array:
-    pass
+    x: mx.array, # (N, I)
+    w: mx.array, # (O, I)
+    bias: mx.array | None = None, # (O)
+) -> mx.array: # (N, O)
+    if bias is not None:
+        return mx.matmul(x, w.T) + bias
+    else:
+        return mx.matmul(x, w.T)
 
 
 def silu(x: mx.array) -> mx.array:
