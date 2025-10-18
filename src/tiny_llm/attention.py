@@ -49,12 +49,17 @@ class SimpleMultiHeadAttention:
         # reshape
         N, L, _ = query.shape
         query = query.reshape(N, L, self.num_heads, self.head_dim)
-        key = key.reshape(N, L, self.num_heads, self.head_dim)
-        value = value.reshape(N, L, self.num_heads, self.head_dim)
+        kv_heads = key.shape[-1] // self.head_dim
+        key = key.reshape(N, L, kv_heads, self.head_dim)
+        value = value.reshape(N, L, kv_heads, self.head_dim)
         # 转置，方便后续计算
         query = query.transpose(0, 2, 1, 3) # (N, H, L, D)
         key = key.transpose(0, 2, 1, 3)
         value = value.transpose(0, 2, 1, 3)
+        if key.shape[1] != self.num_heads:
+            repeats = self.num_heads // key.shape[1]
+            key = mx.concatenate([key] * repeats, axis=1)
+            value = mx.concatenate([value] * repeats, axis=1)
         # 计算注意力
         output = scaled_dot_product_attention_simple(query, key, value, self.scale, mask) # (N, H, L, D)
         output = output.transpose(0, 2, 1, 3) # (N, L, H, D)
