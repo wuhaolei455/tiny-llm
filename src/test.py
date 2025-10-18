@@ -22,7 +22,10 @@ def load_quantized_weights(model_dir: Path) -> dict[str, mx.array]:
     return weights
 
 
-def inspect_attention_output(text: str):
+def inspect_attention_output(texts: str | list[str]):
+    if isinstance(texts, str):
+        texts = [texts]
+
     project_root = Path(__file__).resolve().parents[1]
     model_dir = project_root / "models" / "Qwen" / "Qwen2-0___5B-Instruct-MLX"
 
@@ -43,8 +46,21 @@ def inspect_attention_output(text: str):
         trust_remote_code=True,
         local_files_only=True,
     )
-    inputs = tokenizer(text, return_tensors="np")
+    inputs = tokenizer(
+        texts,
+        return_tensors="np",
+        padding=True,
+    )
     input_ids_np = inputs["input_ids"].astype("int64")
+    print("inputs:", inputs)
+    for idx, ids in enumerate(input_ids_np):
+        ids_list = ids.tolist()
+        tokens = tokenizer.convert_ids_to_tokens(ids_list)
+        restored_text = tokenizer.convert_tokens_to_string(tokens)
+        print(f"样本[{idx}] input_ids: {ids_list}")
+        print(f"样本[{idx}] tokens: {tokens}")
+        print(f"样本[{idx}] 还原文本: {restored_text}")
+
 
     weights = load_quantized_weights(model_dir)
 
@@ -73,10 +89,10 @@ def inspect_attention_output(text: str):
     wv = dequantize_weight(f"{layer_prefix}.v_proj")
     wo = dequantize_weight(f"{layer_prefix}.o_proj")
 
-    print("wq shape:", wq.shape)
-    print("wk shape:", wk.shape)
-    print("wv shape:", wv.shape)
-    print("wo shape:", wo.shape)
+    print("wq shape:", wq.shape, wq)
+    print("wk shape:", wk.shape, wk)
+    print("wv shape:", wv.shape, wv)
+    print("wo shape:", wo.shape, wo)
 
     print("head_dim:", wq.shape[1] // num_heads)
     print("kv head dim:", wk.shape[1] // (wk.shape[0] // num_heads if wk.shape[0] < hidden_size else num_heads))
@@ -90,15 +106,17 @@ def inspect_attention_output(text: str):
         wo=wo,
     )
 
-    print("输入token:", text)
+    print("输入token列表:", texts)
     print("input_ids:", input_ids_np)
     print("token_embeddings shape:", token_embeddings.shape)
     print("token_embeddings:", token_embeddings)
 
     output = attention(token_embeddings, token_embeddings, token_embeddings)
     print("SimpleMultiHeadAttention输出shape:", output.shape)
-    print("SimpleMultiHeadAttention输出:", output)
+    for idx, text in enumerate(texts):
+        print(f"SimpleMultiHeadAttention输出[{idx}] 对应文本: {text}")
+        print(output[idx])
 
 
 if __name__ == "__main__":
-    inspect_attention_output("我爱学习")
+    inspect_attention_output(["我爱学习, 哈哈哈哈", "哈哈哈"])
