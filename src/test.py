@@ -1,5 +1,5 @@
-import os
 import json
+from pathlib import Path
 
 import mlx.core as mx
 from safetensors import safe_open
@@ -9,13 +9,13 @@ from tiny_llm.attention import SimpleMultiHeadAttention
 from tiny_llm.quantize import QuantizedWeights
 
 
-def load_quantized_weights(model_dir: str) -> dict[str, mx.array]:
-    weight_file = os.path.join(model_dir, "model.safetensors")
-    if not os.path.exists(weight_file):
+def load_quantized_weights(model_dir: Path) -> dict[str, mx.array]:
+    weight_file = model_dir / "model.safetensors"
+    if not weight_file.exists():
         raise FileNotFoundError(f"未找到模型权重文件: {weight_file}")
 
     weights: dict[str, mx.array] = {}
-    with safe_open(weight_file, framework="np") as f:
+    with safe_open(str(weight_file), framework="np") as f:
         for key in f.keys():
             tensor = f.get_tensor(key)
             weights[key] = mx.array(tensor)
@@ -23,12 +23,13 @@ def load_quantized_weights(model_dir: str) -> dict[str, mx.array]:
 
 
 def inspect_attention_output(text: str):
-    model_dir = "/Users/wuhaolei/code/demos/llm/tiny-llm/models/Qwen/Qwen2-0___5B-Instruct-MLX"
+    project_root = Path(__file__).resolve().parents[1]
+    model_dir = project_root / "models" / "Qwen" / "Qwen2-0___5B-Instruct-MLX"
 
-    config_file = os.path.join(model_dir, "config.json")
-    if not os.path.exists(config_file):
+    config_file = model_dir / "config.json"
+    if not config_file.exists():
         raise FileNotFoundError(f"未找到模型配置文件: {config_file}")
-    with open(config_file, "r", encoding="utf-8") as f:
+    with config_file.open("r", encoding="utf-8") as f:
         config = json.load(f)
 
     hidden_size = config["hidden_size"]
@@ -38,7 +39,7 @@ def inspect_attention_output(text: str):
     bits = config["quantization"]["bits"]
 
     tokenizer = AutoTokenizer.from_pretrained(
-        model_dir,
+        str(model_dir),
         trust_remote_code=True,
         local_files_only=True,
     )
